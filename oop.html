@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OOP & Interfaces - C# Guide</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="logo">
+            <a href="index.html"><span class="brand-cs">C#</span> <span class="brand-title">Developer Portal</span></a>
+        </div>
+        <nav class="nav-links">
+            <a href="temeller.html">Temeller</a>
+            <a href="oop.html" class="active">OOP</a>
+            <a href="linq.html">LINQ</a>
+            <a href="efcore.html">EF Core</a>
+            <a href="async.html">Async</a>
+        </nav>
+    </header>
+
+    <div class="container layout-with-sidebar">
+        <aside class="sidebar">
+            <h3>Konular</h3>
+            <ul>
+                <li><a href="index.html">&larr; Ana Sayfa</a></li>
+                <li><a href="temeller.html">1. Temel Tipler</a></li>
+                <li><a href="oop.html" class="active">2. OOP &amp; Interfaces</a></li>
+                <li><a href="linq.html">3. LINQ Sorguları</a></li>
+                <li><a href="efcore.html">4. EF Core</a></li>
+                <li><a href="async.html">5. Async / Await</a></li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <section class="doc-section">
+                <h2>2. Nesne Yönelimli Programlama (OOP)</h2>
+                <p>Interface tanımı ve Generic Repository kalıbı kullanımı:</p>
+
+                <div class="code-box">
+                    <div class="code-header">Generic Repository Interface</div>
+                    <pre><code>public interface IRepository&lt;T&gt; where T : class
+{
+    Task&lt;IEnumerable&lt;T&gt;&gt; GetAllAsync();
+    Task&lt;T?&gt; GetByIdAsync(int id);
+    Task AddAsync(T entity);
+    void Update(T entity);
+    void Delete(T entity);
+}</code></pre>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <footer>
+        <p>C# Developer Portal — Open Source Guide</p>
+    </footer>
+
+</body>
+</html>

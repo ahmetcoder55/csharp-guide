@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entity Framework Core - C# Guide</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="logo">
+            <a href="index.html"><span class="brand-cs">C#</span> <span class="brand-title">Developer Portal</span></a>
+        </div>
+        <nav class="nav-links">
+            <a href="temeller.html">Temeller</a>
+            <a href="oop.html">OOP</a>
+            <a href="linq.html">LINQ</a>
+            <a href="efcore.html" class="active">EF Core</a>
+            <a href="async.html">Async</a>
+        </nav>
+    </header>
+
+    <div class="container layout-with-sidebar">
+        <aside class="sidebar">
+            <h3>Konular</h3>
+            <ul>
+                <li><a href="index.html">&larr; Ana Sayfa</a></li>
+                <li><a href="temeller.html">1. Temel Tipler</a></li>
+                <li><a href="oop.html">2. OOP &amp; Interfaces</a></li>
+                <li><a href="linq.html">3. LINQ Sorguları</a></li>
+                <li><a href="efcore.html" class="active">4. EF Core</a></li>
+                <li><a href="async.html">5. Async / Await</a></li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <section class="doc-section">
+                <h2>4. Entity Framework Core Kılavuzu</h2>
+                <p>EF Core mimarisi, veritabanı eşlemeleri, ilişkiler, performans optimizasyonları ve gelişmiş teknikler.</p>
+
+                <!-- 1. Entity Tanımları -->
+                <div class="code-box">
+                    <div class="code-header">1. Entity ve İlişki Tanımlamaları (Domain Models)</div>
+                    <pre><code>public abstract class BaseEntity
+{
+    public int Id { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsDeleted { get; set; } = false;
+}
+
+public class Category : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public ICollection&lt;Product&gt; Products { get; set; } = new List&lt;Product&gt;();
+}
+
+public class Product : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public int Stock { get; set; }
+    
+    // Foreign Key & Navigation Property (One-to-Many)
+    public int CategoryId { get; set; }
+    public Category Category { get; set; } = null!;
+    
+    // One-to-One İlişki
+    public ProductDetail? Detail { get; set; }
+}
+
+public class ProductDetail : BaseEntity
+{
+    public string Description { get; set; } = string.Empty;
+    public string Manufacturer { get; set; } = string.Empty;
+    
+    public int ProductId { get; set; }
+    public Product Product { get; set; } = null!;
+}</code></pre>
+                </div>
+
+                <!-- 2. DbContext ve Fluent API -->
+                <div class="code-box">
+                    <div class="code-header">2. DbContext ve Fluent API Konfigürasyonu</div>
+                    <pre><code>public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions&lt;AppDbContext&gt; options) : base(options) { }
+
+    public DbSet&lt;Product&gt; Products => Set&lt;Product&gt;();
+    public DbSet&lt;Category&gt; Categories => Set&lt;Category&gt;();
+    public DbSet&lt;ProductDetail&gt; ProductDetails => Set&lt;ProductDetail&gt;();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Global Query Filter (Soft Delete)
+        modelBuilder.Entity&lt;Product&gt;().HasQueryFilter(p => !p.IsDeleted);
+
+        // Product Konfigürasyonu
+        modelBuilder.Entity&lt;Product&gt;(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(150);
+            entity.Property(p => p.Price).HasPrecision(18, 2);
+            
+            // One-to-Many İlişki
+            entity.HasOne(p => p.Category)
+                  .WithMany(c => c.Products)
+                  .HasForeignKey(p => p.CategoryId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // One-to-One İlişki
+            entity.HasOne(p => p.Detail)
+                  .WithOne(d => d.Product)
+                  .HasForeignKey&lt;ProductDetail&gt;(d => d.ProductId);
+        });
+    }
+}</code></pre>
+                </div>
+
+                <!-- 3. CRUD İşlemleri -->
+                <div class="code-box">
+                    <div class="code-header">3. Temel ve Asenkron CRUD İşlemleri</div>
+                    <pre><code>public class ProductService
+{
+    private readonly AppDbContext _context;
+
+    public ProductService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    // Ekleme (Create)
+    public async Task&lt;Product&gt; CreateProductAsync(string name, decimal price, int categoryId)
+    {
+        var product = new Product
+        {
+            Name = name,
+            Price = price,
+            CategoryId = categoryId
+        };
+
+        await _context.Products.AddAsync(product);
+        await _context.SaveChangesAsync();
+        return product;
+    }
+
+    // Güncelleme (Update)
+    public async Task UpdatePriceAsync(int productId, decimal newPrice)
+    {
+        var product = await _context.Products.FindAsync(productId);
+        if (product != null)
+        {
+            product.Price = newPrice;
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    // Soft Delete
+    public async Task SoftDeleteAsync(int productId)
+    {
+        var product = await _context.Products.FindAsync(productId);
+        if (product != null)
+        {
+            product.IsDeleted = true;
+            await _context.SaveChangesAsync();
+        }
+    }
+}</code></pre>
+                </div>
+
+                <!-- 4. Gelişmiş Sorgulama & Performans -->
+                <div class="code-box">
+                    <div class="code-header">4. Performans &amp; İlişkili Veri Yükleme (Eager, Split, NoTracking)</div>
+                    <pre><code>public async Task&lt;List&lt;ProductDto&gt;&gt; GetHighValueProductsAsync()
+{
+    return await _context.Products
+        .AsNoTracking() // Okuma performansını artırır (Change Tracker devre dışı)
+        .Include(p => p.Category) // Eager Loading
+        .Include(p => p.Detail)
+        .AsSplitQuery() // Çoğul Join'lerde Kartezyen patlamayı önler
+        .Where(p => p.Price > 1000)
+        .Select(p => new ProductDto
+        {
+            Id = p.Id,
+            Name = p.Name,
+            CategoryName = p.Category.Name,
+            Price = p.Price
+        })
+        .ToListAsync();
+}</code></pre>
+                </div>
+
+                <!-- 5. Raw SQL & ExecuteUpdate -->
+                <div class="code-box">
+                    <div class="code-header">5. Raw SQL &amp; Bulk Operations (EF Core 7+)</div>
+                    <pre><code>// Toplu Güncelleme (Hafızaya çekmeden doğrudan SQL çalıştırır)
+public async Task BulkUpdatePricesAsync(int categoryId, decimal discountPercent)
+{
+    await _context.Products
+        .Where(p => p.CategoryId == categoryId)
+        .ExecuteUpdateAsync(s => s.SetProperty(
+            p => p.Price, 
+            p => p.Price * (1 - discountPercent / 100)
+        ));
+}
+
+// Raw SQL Sorgusu
+public async Task&lt;List&lt;Product&gt;&gt; GetProductsBySqlAsync(string keyword)
+{
+    return await _context.Products
+        .FromSqlRaw("SELECT * FROM Products WHERE Name LIKE {0}", $"%{keyword}%")
+        .AsNoTracking()
+        .ToListAsync();
+}</code></pre>
+                </div>
+
+                <!-- 6. Interceptors -->
+                <div class="code-box">
+                    <div class="code-header">6. SaveChanges Interceptor (Otomatik Tarih & Audit)</div>
+                    <pre><code>public class AuditInterceptor : SaveChangesInterceptor
+{
+    public override ValueTask&lt;InterceptionResult&lt;int&gt;&gt; SavingChangesAsync(
+        DbContextEventData eventData, 
+        InterceptionResult&lt;int&gt; result, 
+        CancellationToken cancellationToken = default)
+    {
+        var dbContext = eventData.Context;
+        if (dbContext == null) return base.SavingChangesAsync(eventData, result, cancellationToken);
+
+        var entries = dbContext.ChangeTracker.Entries&lt;BaseEntity&gt;();
+
+        foreach (var entry in entries)
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreatedAt = DateTime.UtcNow;
+            }
+        }
+
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+}</code></pre>
+                </div>
+
+                <!-- 7. Migration Komutları -->
+                <div class="code-box">
+                    <div class="code-header">7. CLI &amp; Package Manager Console (PMC) Komutları</div>
+                    <pre><code># EF Core CLI Komutları (Terminal)
+dotnet ef migrations add InitialCreate
+dotnet ef database update
+dotnet ef migrations remove
+
+# Package Manager Console (Visual Studio)
+Add-Migration InitialCreate
+Update-Database
+Remove-Migration</code></pre>
+                </div>
+
+            </section>
+        </main>
+    </div>
+
+    <footer>
+        <p>C# Developer Portal — Open Source EF Core Reference Guide</p>
+    </footer>
+
+</body>
+</html>
